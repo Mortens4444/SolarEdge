@@ -1,0 +1,5 @@
+[{000214A0-0000-0000-C000-000000000046}]
+Prop3=19,11
+[InternetShortcut]
+IDList=
+URL=https://monitoringapi.solaredge.com/site/SITE_ID/INVERTER_SERIAL_NUMBER/data?api_key=API_KEY
