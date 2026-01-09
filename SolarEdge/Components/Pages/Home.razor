@@ -23,7 +23,7 @@
 else
 {
     @* --- ALERTS SECTION --- *@
-    @if (!string.IsNullOrEmpty(alertsErrorMessage))
+    @if (!String.IsNullOrEmpty(alertsErrorMessage))
     {
         <div class="alert alert-warning shadow-sm mb-4">
             <h6 class="mb-1"><i class="bi bi-exclamation-circle"></i> Alerts Module Error</h6>
@@ -53,7 +53,7 @@ else
             <h6 class="mb-0"><i class="bi bi-lightning-charge"></i> Inverter Telemetry (Last Hour)</h6>
         </div>
         <div class="card-body">
-            @if (!string.IsNullOrEmpty(inverterErrorMessage))
+            @if (!String.IsNullOrEmpty(inverterErrorMessage))
             {
                 <div class="text-danger small">@inverterErrorMessage</div>
             }
@@ -130,7 +130,7 @@ else
         <div class="card-body small">
             <address class="mb-2">
                 <strong>@site.Location.Address</strong><br />
-                @if (!string.IsNullOrEmpty(site.Location.Address2))
+                @if (!String.IsNullOrEmpty(site.Location.Address2))
                 {
                     <span>@site.Location.Address2<br /></span>
                 }
