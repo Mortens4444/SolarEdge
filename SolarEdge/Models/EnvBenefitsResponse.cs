@@ -2,5 +2,5 @@
 
 public class EnvBenefitsResponse
 {
-    public EnvBenefits envBenefits { get; set; }
+    public EnvBenefits EnvBenefits { get; set; } = new();
 }

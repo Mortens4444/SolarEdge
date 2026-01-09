@@ -4,7 +4,17 @@
 @using System.Net
 @inject HttpClient Http
 
-<h1>SolarEdge Monitor</h1>
+<div class="d-flex justify-content-between align-items-center mb-1">
+    <h1>SolarEdge Monitor</h1>
+    <button class="btn btn-outline-secondary btn-sm" @onclick="RefreshData">
+        <i class="bi bi-arrow-clockwise"></i> Reload Data
+    </button>
+</div>
+
+@if (lastRefresh.HasValue)
+{
+    <p class="text-muted small mb-3">Last updated: @lastRefresh.Value.ToString("yyyy-MM-dd HH:mm:ss")</p>
+}
 
 @if (site == null)
 {
@@ -13,7 +23,14 @@
 else
 {
     @* --- ALERTS SECTION --- *@
-    @if (alerts != null && alerts.Any())
+    @if (!string.IsNullOrEmpty(alertsErrorMessage))
+    {
+        <div class="alert alert-warning shadow-sm mb-4">
+            <h6 class="mb-1"><i class="bi bi-exclamation-circle"></i> Alerts Module Error</h6>
+            <small>@alertsErrorMessage</small>
+        </div>
+    }
+    else if (alerts != null && alerts.Any())
     {
         <div class="alert alert-danger shadow-sm mb-4">
             <h4 class="alert-heading"><i class="bi bi-exclamation-triangle-fill"></i> Active Alerts (@alerts.Count)</h4>
@@ -30,14 +47,50 @@ else
         </div>
     }
 
+    @* --- INVERTER REAL-TIME DATA --- *@
+    <div class="card shadow-sm mb-4 border-warning">
+        <div class="card-header bg-warning text-dark">
+            <h6 class="mb-0"><i class="bi bi-lightning-charge"></i> Inverter Telemetry (Last Hour)</h6>
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrEmpty(inverterErrorMessage))
+            {
+                <div class="text-danger small">@inverterErrorMessage</div>
+            }
+            else if (inverterDetails.Any())
+            {
+                var latest = inverterDetails.First();
+                <div class="row text-center">
+                    <div class="col-4">
+                        <small class="text-muted d-block">AC Power</small>
+                        <strong>@latest.TotalActivePower W</strong>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted d-block">DC Voltage</small>
+                        <strong>@latest.DcVoltage V</strong>
+                    </div>
+                    <div class="col-4">
+                        <small class="text-muted d-block">Temp</small>
+                        <strong>@latest.Temperature °C</strong>
+                    </div>
+                </div>
+                <div class="mt-2 pt-2 border-top extra-small text-muted text-center">
+                    Last reading: @latest.Date
+                </div>
+            }
+            else
+            {
+                <div class="text-muted small">No recent telemetry data available.</div>
+            }
+        </div>
+    </div>
+
     @* --- MAIN SITE DETAILS --- *@
     <div class="card shadow-sm mb-4">
         <div class="card-header bg-primary text-white d-flex justify-content-between">
             <h5 class="mb-0">@site.Name</h5>
-@*             <span class="badge bg-light text-primary">@site.Status</span> *@
         </div>
         <div class="card-body">
-@*             <strong>Status:</strong> *@
             <span class="badge @(site.Status == "Active" ? "bg-success" : "bg-warning text-dark")">
                 @site.Status
             </span>
@@ -101,14 +154,32 @@ else
 }
 
 @code {
-    private string apiKey;
+    private string baseUrl = "https://monitoringapi.solaredge.com";
+    private string? siteId;
+    private string? inverterSerialNumber;
+    private string? apiKey;
     private Site? site;
     private List<Alert> alerts = new();
     private string message = "Loading data...";
+    private string? alertsErrorMessage;
+    private DateTime? lastRefresh;
+    private List<InverterTelemetry> inverterDetails = new();
+    private string? inverterErrorMessage;
 
     protected override async Task OnInitializedAsync()
     {
-        var siteId = await SecureStorage.Default.GetAsync("site_id");
+        await RefreshData();
+    }
+
+    private async Task RefreshData()
+    {
+        site = null;
+        alerts.Clear();
+        alertsErrorMessage = null;
+        message = "Updating data...";
+
+        siteId = await SecureStorage.Default.GetAsync("site_id");
+        inverterSerialNumber = await SecureStorage.Default.GetAsync("inverter_serial_number");
         apiKey = await SecureStorage.Default.GetAsync("api_key");
 
         if (String.IsNullOrEmpty(siteId) || String.IsNullOrEmpty(apiKey))
@@ -119,30 +190,79 @@ else
 
         try
         {
-            var baseUrl = $"https://monitoringapi.solaredge.com/site/{siteId}";
-
-            var siteRes = await Http.GetFromJsonAsync<SolarEdgeResponse>($"{baseUrl}/details?api_key={apiKey}");
-            if (siteRes?.Details != null)
+            await GetSiteDetails();
+            if (site != null)
             {
-                site = siteRes.Details;
+                await GetAlerts();
+                await GetInverterData();
             }
-
-            try
-            {
-                var alertsRes = await Http.GetFromJsonAsync<AlertsResponse>($"{baseUrl}/alerts?api_key={apiKey}");
-                if (alertsRes?.Alerts?.Content != null)
-                {
-                    alerts = alertsRes.Alerts.Content;
-                }
-            }
-            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
-            {
-                Console.WriteLine("Alerts API access forbidden (403).");
-            }
+            lastRefresh = DateTime.Now;
         }
         catch (Exception ex)
         {
             message = "Error: " + ex.Message;
+        }
+    }
+
+    private async Task GetSiteDetails()
+    {
+        var url = $"{baseUrl}/site/{siteId}/details?api_key={apiKey}";
+        var response = await Http.GetFromJsonAsync<SolarEdgeResponse>(url);
+        site = response?.Details;
+    }
+
+    private async Task GetAlerts()
+    {
+        try
+        {
+            var url = $"{baseUrl}/site/{siteId}/alerts?api_key={apiKey}";
+            var response = await Http.GetFromJsonAsync<AlertsResponse>(url);
+            if (response?.Alerts?.Content != null)
+            {
+                alerts = response.Alerts.Content;
+            }
+        }
+        catch (Exception ex)
+        {
+            alertsErrorMessage = $"Alerts unavailable: {ex.Message}";
+            Console.WriteLine("Alerts API call failed.");
+        }
+    }
+
+    private async Task GetInverterData()
+    {
+        try
+        {
+            // Inventory lekérése a szériaszám miatt
+            var invUrl = $"{baseUrl}/site/{siteId}/inventory?api_key={apiKey}";
+            var inventoryRes = await Http.GetFromJsonAsync<InventoryResponse>(invUrl);
+            var inverter = inventoryRes?.Inventory?.Inverters?.FirstOrDefault();
+
+            if (inverter != null)
+            {
+                var storedSerial = await SecureStorage.Default.GetAsync("inverter_serial_number");
+                var serial = String.IsNullOrEmpty(inverter.SerialNumber) ? storedSerial : inverter.SerialNumber;
+
+                if (String.IsNullOrEmpty(serial))
+                {
+                    return;
+                }
+
+                var startTime = DateTime.Now.AddHours(-1).ToString("yyyy-MM-dd HH:mm:ss");
+                var endTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
+
+                var dataUrl = $"{baseUrl}/equipment/{siteId}/{serial}/data?startTime={startTime}&endTime={endTime}&api_key={apiKey}";
+                var dataRes = await Http.GetFromJsonAsync<InverterDataResponse>(dataUrl);
+
+                if (dataRes?.Data?.Telemetries != null)
+                {
+                    inverterDetails = dataRes.Data.Telemetries.OrderByDescending(t => t.Date).ToList();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            inverterErrorMessage = $"Inverter telemetry failed: {ex.Message}";
         }
     }
 
@@ -156,10 +276,10 @@ else
         // "/site/123/details"
         if (uri.StartsWith("/"))
         {
-            return $"https://monitoringapi.solaredge.com{uri}?api_key={apiKey}";            
+            return $"{baseUrl}{uri}?api_key={apiKey}";
         }
 
         // 0.0.0.1
-        return uri.Replace("0.0.0.1", "monitoringapi.solaredge.com");
+        return uri.Replace("0.0.0.1", baseUrl);
     }
 }

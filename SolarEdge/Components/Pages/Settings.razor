@@ -41,7 +41,7 @@
     private async Task SaveSettings()
     {
         await SecureStorage.Default.SetAsync("site_id", siteId ?? String.Empty);
-        await SecureStorage.Default.SetAsync("inverter_serial_number", apiKey ?? String.Empty);
+        await SecureStorage.Default.SetAsync("inverter_serial_number", inverterSerialNumber ?? String.Empty);
         await SecureStorage.Default.SetAsync("api_key", apiKey ?? String.Empty);
         statusMessage = "Settings saved!";
     }

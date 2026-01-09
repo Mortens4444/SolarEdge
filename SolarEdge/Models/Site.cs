@@ -3,13 +3,13 @@
 public class Site
 {
     public int Id { get; set; }
-    public string Name { get; set; } = string.Empty;
-    public string Status { get; set; } = string.Empty;
+    public string Name { get; set; } = String.Empty;
+    public string Status { get; set; } = String.Empty;
     public double PeakPower { get; set; }
-    public string Currency { get; set; } = string.Empty;
-    public string InstallationDate { get; set; } = string.Empty;
-    public string Notes { get; set; } = string.Empty;
-    public string Type { get; set; } = string.Empty;
+    public string Currency { get; set; } = String.Empty;
+    public string InstallationDate { get; set; } = String.Empty;
+    public string Notes { get; set; } = String.Empty;
+    public string Type { get; set; } = String.Empty;
     public int AlertQuantity { get; set; }
     public int HighestImpact { get; set; }
     public Location Location { get; set; } = new();

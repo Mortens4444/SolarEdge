@@ -2,7 +2,7 @@
 
 public class EnvBenefits
 {
-    public double gasSaved { get; set; } // Megtakarított gáz (kg)
-    public double treesPlanted { get; set; } // Ültetett fák száma
-    public double lightBulbs { get; set; } // Hány égőt lehetne égetni ennyi energiával
+    public double GasSaved { get; set; }
+    public double TreesPlanted { get; set; }
+    public double LightBulbs { get; set; }
 }
