@@ -22,6 +22,53 @@
 }
 else
 {
+    @* --- CURRENT POWER FLOW --- *@
+    <div class="card shadow-sm mb-4 border-primary">
+        <div class="card-header bg-primary text-white">
+            <h6 class="mb-0"><i class="bi bi-arrow-left-right"></i> Current Power Flow (@powerFlow?.Unit)</h6>
+        </div>
+        <div class="card-body">
+            @if (!string.IsNullOrEmpty(powerFlowErrorMessage))
+            {
+                <div class="text-danger small">@powerFlowErrorMessage</div>
+            }
+            else if (powerFlow != null)
+            {
+                <div class="row text-center">
+                    <div class="col-4">
+                        <i class="bi bi-sun text-warning h4"></i>
+                        <small class="d-block text-muted">Solar (PV)</small>
+                        <strong class="text-success">@(powerFlow.PV?.CurrentPower.ToString("F2") ?? "0.00")</strong>
+                    </div>
+                    <div class="col-4">
+                        <i class="bi bi-house-door text-primary h4"></i>
+                        <small class="d-block text-muted">House (Load)</small>
+                        <strong class="text-primary">@(powerFlow.Load?.CurrentPower.ToString("F2") ?? "N/A")</strong>
+                    </div>
+                    <div class="col-4">
+                        <i class="bi bi-transmission-tower text-secondary h4"></i>
+                        <small class="d-block text-muted">Grid</small>
+                        @if (powerFlow.Grid != null)
+                        {
+                            <strong class="@(powerFlow.Grid.CurrentPower > 0 ? "text-danger" : "text-success")">
+                                @Math.Abs(powerFlow.Grid.CurrentPower).ToString("F2")
+                            </strong>
+                            <small class="d-block extra-small">@(powerFlow.Grid.CurrentPower > 0 ? "Import" : "Export")</small>
+                        }
+                        else
+                        {
+                            <strong>N/A</strong>
+                        }
+                    </div>
+                </div>
+
+                <div class="mt-3 small text-center text-muted">
+                    Mode: <strong>@powerFlow.Grid?.Status</strong>
+                </div>
+            }
+        </div>
+    </div>
+
     @* --- ALERTS SECTION --- *@
     @if (!String.IsNullOrEmpty(alertsErrorMessage))
     {
@@ -165,6 +212,8 @@ else
     private DateTime? lastRefresh;
     private List<InverterTelemetry> inverterDetails = new();
     private string? inverterErrorMessage;
+    private SiteCurrentPowerFlow? powerFlow;
+    private string? powerFlowErrorMessage;
 
     protected override async Task OnInitializedAsync()
     {
@@ -195,6 +244,7 @@ else
             {
                 await GetAlerts();
                 await GetInverterData();
+                await GetPowerFlow();
             }
             lastRefresh = DateTime.Now;
         }
@@ -263,6 +313,22 @@ else
         catch (Exception ex)
         {
             inverterErrorMessage = $"Inverter telemetry failed: {ex.Message}";
+        }
+    }
+
+    private async Task GetPowerFlow()
+    {
+        try
+        {
+            var flowRes = await Http.GetFromJsonAsync<PowerFlowResponse>($"{baseUrl}/site/{siteId}/currentPowerFlow?api_key={apiKey}");
+            if (flowRes?.SiteCurrentPowerFlow != null)
+            {
+                powerFlow = flowRes.SiteCurrentPowerFlow;
+            }
+        }
+        catch (Exception ex)
+        {
+            powerFlowErrorMessage = $"Power flow unavailable: {ex.Message}";
         }
     }
 
