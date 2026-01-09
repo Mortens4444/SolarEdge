@@ -20,14 +20,28 @@
         <Nullable>enable</Nullable>
 
         <!-- Display name -->
-        <ApplicationTitle>SolarEdge</ApplicationTitle>
+        <ApplicationTitle>SolarEdge Monitor</ApplicationTitle>
 
         <!-- App Identifier -->
-        <ApplicationId>com.companyname.solaredge</ApplicationId>
+        <ApplicationId>com.mortens.solaredge.monitor</ApplicationId>
 
         <!-- Versions -->
-        <ApplicationDisplayVersion>1.0</ApplicationDisplayVersion>
-        <ApplicationVersion>1</ApplicationVersion>
+        <MajorVersion>1</MajorVersion>
+        <MinorVersion>23</MinorVersion>
+        <BuildNumber>0</BuildNumber>
+        <PatchNumber>0</PatchNumber>
+        <FileVersion>$(MajorVersion).$(MinorVersion).$(BuildNumber).$(PatchNumber)</FileVersion>
+        <AssemblyVersion>$(FileVersion)</AssemblyVersion>
+        <ApplicationDisplayVersion>$(MajorVersion).$(MinorVersion).$(BuildNumber)</ApplicationDisplayVersion>
+        <PackageVersion>$(ApplicationDisplayVersion)</PackageVersion>
+        <ApplicationVersion>$(MajorVersion)</ApplicationVersion>
+        <WarningLevel>9999</WarningLevel>
+        <EnforceCodeStyleInBuild>True</EnforceCodeStyleInBuild>
+        <AnalysisLevel>latest-all</AnalysisLevel>
+        <WindowsPackageType>None</WindowsPackageType>
+        <Company>Mortens</Company>
+        <Authors>Mortens</Authors>
+        <IncludeSymbols>True</IncludeSymbols>
 
         <!-- To develop, package, and publish an app to the Microsoft Store, see: https://aka.ms/MauiTemplateUnpackaged -->
         <WindowsPackageType>None</WindowsPackageType>
@@ -38,7 +52,15 @@
         <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</SupportedOSPlatformVersion>
         <TargetPlatformMinVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'windows'">10.0.17763.0</TargetPlatformMinVersion>
     </PropertyGroup>
-
+    <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+      <AndroidKeyStore>True</AndroidKeyStore>
+      <AndroidSigningKeyAlias>h4ckw1thm3</AndroidSigningKeyAlias>
+      <AndroidSigningKeyStore>C:\Work\KeyStore\H4ckW1thM3\keystore.jks</AndroidSigningKeyStore>
+      <AndroidSigningKeyPass>file:C:\Work\KeyStore\H4ckW1thM3\AndroidSigningKeyPass.txt</AndroidSigningKeyPass>
+      <AndroidSigningStorePass>file:C:\Work\KeyStore\H4ckW1thM3\AndroidSigningStorePass.txt</AndroidSigningStorePass>
+      <AndroidPackageFormats>aab;apk</AndroidPackageFormats>
+    </PropertyGroup>
+      
     <ItemGroup>
         <!-- App Icon -->
         <MauiIcon Include="Resources\AppIcon\appicon.svg" ForegroundFile="Resources\AppIcon\appiconfg.svg" Color="#512BD4" />
