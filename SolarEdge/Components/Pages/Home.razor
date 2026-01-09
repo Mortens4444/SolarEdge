@@ -1,0 +1,165 @@
+﻿@page "/"
+@using Microsoft.Maui.Storage
+@using SolarEdge.Models
+@using System.Net
+@inject HttpClient Http
+
+<h1>SolarEdge Monitor</h1>
+
+@if (site == null)
+{
+    <div class="alert alert-info">@message</div>
+}
+else
+{
+    @* --- ALERTS SECTION --- *@
+    @if (alerts != null && alerts.Any())
+    {
+        <div class="alert alert-danger shadow-sm mb-4">
+            <h4 class="alert-heading"><i class="bi bi-exclamation-triangle-fill"></i> Active Alerts (@alerts.Count)</h4>
+            @foreach (var alert in alerts)
+            {
+                <div class="p-2 border-bottom border-danger-subtle">
+                    <div class="d-flex justify-content-between font-weight-bold">
+                        <span>@alert.Name</span>
+                        <span class="badge bg-danger">@alert.Severity</span>
+                    </div>
+                    <small>@alert.Description</small>
+                </div>
+            }
+        </div>
+    }
+
+    @* --- MAIN SITE DETAILS --- *@
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between">
+            <h5 class="mb-0">@site.Name</h5>
+@*             <span class="badge bg-light text-primary">@site.Status</span> *@
+        </div>
+        <div class="card-body">
+@*             <strong>Status:</strong> *@
+            <span class="badge @(site.Status == "Active" ? "bg-success" : "bg-warning text-dark")">
+                @site.Status
+            </span>
+            <div class="row">
+                <div class="col-6 border-end">
+                    <p class="mb-1 text-muted small">System Info</p>
+                    <strong>ID:</strong> @site.Id<br />
+                    <strong>Type:</strong> @site.Type<br />
+                    <strong>Power:</strong> @site.PeakPower kWp<br />
+                </div>
+                <div class="col-6 ps-3">
+                    <p class="mb-1 text-muted small">Alarms Info</p>
+                    <strong>Quantity:</strong> @site.AlertQuantity<br />
+                    <strong>Impact Score:</strong> @site.HighestImpact
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* --- PRIMARY MODULE --- *@
+    <div class="card shadow-sm mb-4 border-info">
+        <div class="card-header bg-info text-white">
+            <h6 class="mb-0"><i class="bi bi-cpu"></i> Hardware Details</h6>
+        </div>
+        <div class="card-body">
+            <strong>Module:</strong> @site.PrimaryModule.ManufacturerName @site.PrimaryModule.ModelName<br />
+            <strong>Max Power:</strong> @site.PrimaryModule.MaximumPower W<br />
+            <strong>Temp Coef:</strong> @site.PrimaryModule.TemperatureCoef %/°C
+        </div>
+    </div>
+
+    @* --- LOCATION & MAP --- *@
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-secondary text-white">
+            <h6 class="mb-0"><i class="bi bi-geo-alt"></i> Location</h6>
+        </div>
+        <div class="card-body small">
+            <address class="mb-2">
+                <strong>@site.Location.Address</strong><br />
+                @if (!string.IsNullOrEmpty(site.Location.Address2))
+                {
+                    <span>@site.Location.Address2<br /></span>
+                }
+                @site.Location.Zip @site.Location.City, @site.Location.Country (@site.Location.CountryCode)
+            </address>
+            <hr />
+            <div class="d-flex justify-content-between">
+                <span><strong>Lat:</strong> @site.Location.Latitude</span>
+                <span><strong>Long:</strong> @site.Location.Longitude</span>
+            </div>
+            <div class="text-muted mt-2"><strong>Timezone:</strong> @site.Location.TimeZone</div>
+        </div>
+    </div>
+
+    @* --- QUICK LINKS (URIS) --- *@
+    <div class="d-grid gap-2 mb-4">
+        <a href="@FormatApiUri(site.Uris.Overview)" target="_blank" class="btn btn-outline-primary btn-sm">Open SolarEdge Overview</a>
+        <a href="@FormatApiUri(site.Uris.Details)" target="_blank" class="btn btn-outline-primary btn-sm">Open SolarEdge Details</a>
+        <a href="@FormatApiUri(site.Uris.Data_Period)" target="_blank" class="btn btn-outline-primary btn-sm">Open SolarEdge Data Period</a>
+    </div>
+}
+
+@code {
+    private string apiKey;
+    private Site? site;
+    private List<Alert> alerts = new();
+    private string message = "Loading data...";
+
+    protected override async Task OnInitializedAsync()
+    {
+        var siteId = await SecureStorage.Default.GetAsync("site_id");
+        apiKey = await SecureStorage.Default.GetAsync("api_key");
+
+        if (String.IsNullOrEmpty(siteId) || String.IsNullOrEmpty(apiKey))
+        {
+            message = "Missing API settings!";
+            return;
+        }
+
+        try
+        {
+            var baseUrl = $"https://monitoringapi.solaredge.com/site/{siteId}";
+
+            var siteRes = await Http.GetFromJsonAsync<SolarEdgeResponse>($"{baseUrl}/details?api_key={apiKey}");
+            if (siteRes?.Details != null)
+            {
+                site = siteRes.Details;
+            }
+
+            try
+            {
+                var alertsRes = await Http.GetFromJsonAsync<AlertsResponse>($"{baseUrl}/alerts?api_key={apiKey}");
+                if (alertsRes?.Alerts?.Content != null)
+                {
+                    alerts = alertsRes.Alerts.Content;
+                }
+            }
+            catch (HttpRequestException ex) when (ex.StatusCode == HttpStatusCode.Forbidden)
+            {
+                Console.WriteLine("Alerts API access forbidden (403).");
+            }
+        }
+        catch (Exception ex)
+        {
+            message = "Error: " + ex.Message;
+        }
+    }
+
+    private string FormatApiUri(string uri)
+    {
+        if (String.IsNullOrEmpty(uri))
+        {
+            return "#";
+        }
+
+        // "/site/123/details"
+        if (uri.StartsWith("/"))
+        {
+            return $"https://monitoringapi.solaredge.com{uri}?api_key={apiKey}";            
+        }
+
+        // 0.0.0.1
+        return uri.Replace("0.0.0.1", "monitoringapi.solaredge.com");
+    }
+}

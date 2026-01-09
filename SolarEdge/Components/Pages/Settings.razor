@@ -1,0 +1,48 @@
+﻿@page "/settings"
+@using Microsoft.Maui.Storage
+
+<h3>Settings</h3>
+
+<div class="mb-3">
+    <label class="form-label">SolarEdge Site ID</label>
+    <input @bind="siteId" class="form-control" placeholder="123456" />
+</div>
+
+<div class="mb-3">
+    <label class="form-label">Inverter Serial Number</label>
+    <input @bind="inverterSerialNumber" class="form-control" />
+</div>
+
+<div class="mb-3">
+    <label class="form-label">API Key</label>
+    <input @bind="apiKey" type="password" class="form-control" />
+</div>
+
+<button class="btn btn-primary" @onclick="SaveSettings">Save</button>
+
+@if (!String.IsNullOrEmpty(statusMessage))
+{
+    <p class="mt-2 text-success">@statusMessage</p>
+}
+
+@code {
+    private string? siteId;
+    private string? inverterSerialNumber;
+    private string? apiKey;
+    private string? statusMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        siteId = await SecureStorage.Default.GetAsync("site_id");
+        inverterSerialNumber = await SecureStorage.Default.GetAsync("inverter_serial_number");
+        apiKey = await SecureStorage.Default.GetAsync("api_key");
+    }
+
+    private async Task SaveSettings()
+    {
+        await SecureStorage.Default.SetAsync("site_id", siteId ?? String.Empty);
+        await SecureStorage.Default.SetAsync("inverter_serial_number", apiKey ?? String.Empty);
+        await SecureStorage.Default.SetAsync("api_key", apiKey ?? String.Empty);
+        statusMessage = "Settings saved!";
+    }
+}
